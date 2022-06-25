@@ -1,0 +1,7 @@
+*.csv
+*.csv1
+buy_sell.py
+dividendid.py
+functions.py
+.idea/
+__pycache__/
