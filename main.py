@@ -311,7 +311,8 @@ df_full['next_row'] = df_full['class'].shift(-1)
 #выборка по определенному тикеру
 for key in sorted(ticker_dict.ticker_dict.keys()):
     df4 = df_full[df_full['ticker_'] == key]
-    pd.options.mode.chained_assignment = None # disable chained assignments, для добавления Total, SettingWithCopyWarning
+    pd.options.mode.chained_assignment = None # disable chained assignments, для добавления Total,
+    # SettingWithCopyWarning
     df4.loc['Total'] = df4.sum(numeric_only=True)
     df4 = df4.replace(np.nan, '', regex=True)
     print('-------')
