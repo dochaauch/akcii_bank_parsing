@@ -43,7 +43,10 @@ Moving = namedtuple('Moving', 'date_ qnt amount owner')
 
 #file_ = 'tolik_21_22.csv'
 #file_ = 'docha_2022.csv'
-list_of_file = ['tolik_21_22.csv', 'docha_2022.csv']
+list_of_file = ['tolik_210101-211231_aa.csv',
+                'tolik_220101-220630_aa.csv',
+                'tolik_220701-220706_aa.csv',
+                'docha_2022.csv']
 
 dict_shares = defaultdict(list)
 
@@ -320,10 +323,10 @@ for key in sorted(ticker_dict.ticker_dict.keys()):
     print(df4.to_string(), end='\n\n')
 
 
-print('***')
 df2 = df_full[(df_full['class'] == 'Buy_sell') | (df_full['class'] == 'Dividend')]
 print('Buy - sell - dividend, вложенная сумма по владельцу')
 print(df2.groupby(['owner']).agg({'eursumm': ['sum']}).stb.subtotal(), end='\n\n')
+
 df2 = df2.groupby(['sanc', 'owner'])
 print('Buy - sell - dividend, вложенная сумма по владельцу, санкционные')
 print(df2.agg({'eursumm': ['sum']}).stb.subtotal(), end='\n\n')
@@ -332,10 +335,15 @@ print('***')
 df3 = df_full[(df_full['class'] == 'Buy_sell')]
 print('Buy - sell', 'всего вложено, без учета дивидендов')
 print(df3.agg({'eursumm': ['sum']}).groupby(['owner']).sum(), end='\n\n')
-df3 = df3.groupby(['sanc', 'owner'])
+df5 = df3.groupby(['sanc', 'owner'])
 print('Buy - sell', 'всего вложено, без учета дивидендов, по владельцам и санцкиям')
-print(df3.agg({'eursumm': ['sum']}).stb.subtotal(), end='\n\n')
+print(df5.agg({'eursumm': ['sum']}).stb.subtotal(), end='\n\n')
+
 print('***')
+print('Buy - sell', 'всего вложено, без учета дивидендов, ticker')
+print(df3.groupby(['ticker_', 'owner']).agg({'eursumm': ['sum']}).stb.subtotal().to_string(), end='\n\n')
+
+
 
 
 agg_func_math = {

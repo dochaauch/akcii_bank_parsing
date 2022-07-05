@@ -28,7 +28,9 @@ ticker_dict = {'DAI': Share_data('Mercedes-Benz Group', 'no'),
                'AB': Share_data('ALLIANCEBERNSTEIN HOLDING LP', 'no'),
                'GOGL-US1': Share_data('GOLDEN OCEAN GROUP LTD USA', 'no'),
                'ORC-US': Share_data('ORCHID ISLAND CAPITAL INC', 'no'),
-               'ZIM-US': Share_data('ZIM INTEGRATED SHIPPING SERVICE', 'no'),
+               'ZIM-US': Share_data('ZIM INTEGRATED SHIPPING SERVICE', 'no',),
+               'J5A-GR': Share_data('Warner Bros Discovery Inc', 'no',),
+
                }
 
 
