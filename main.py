@@ -12,6 +12,8 @@ import ticker_dict
 from collections import namedtuple
 from collections import defaultdict
 
+import os
+
 
 #import yfinance as yf
 #from yahoofinancials import YahooFinancials
@@ -43,10 +45,29 @@ Moving = namedtuple('Moving', 'date_ qnt amount owner')
 
 #file_ = 'tolik_21_22.csv'
 #file_ = 'docha_2022.csv'
-list_of_file = ['tolik_210101-211231_aa.csv',
-                'tolik_220101-220630_aa.csv',
-                'tolik_220701-220706_aa.csv',
-                'docha_2022.csv']
+
+
+#в этих папках не должно быть вложений и только нужные csv
+your_target_folder_list = ["/Users/docha/Google Диск/akcii Tolika/2022",
+                           "/Users/docha/Google Диск/akcii docha/2022"]
+list_of_file = []
+
+def read_all_files_in_folder(fold_list):
+    for folder_ in fold_list:
+        for dirpath, _, filenames in os.walk(folder_):
+            for items in filenames:
+                file_full_path = os.path.abspath(os.path.join(dirpath, items))
+                if file_full_path.endswith('.csv'):
+                    list_of_file.append(file_full_path)
+    return list_of_file
+
+#list_of_file = ['tolik_210101-211231_aa.csv',
+#                'tolik_220101-220630_aa.csv',
+#                'tolik_220701-220706_aa.csv',
+#                'docha_220101-220630.csv']
+
+list_of_file = read_all_files_in_folder(your_target_folder_list)
+print(list_of_file)
 
 dict_shares = defaultdict(list)
 
