@@ -1,7 +1,8 @@
 *.csv
 *.csv1
-buy_sell.py
-dividendid.py
-functions.py
+trial/buy_sell.py
+trial/dividendid.py
+trial/functions.py
 .idea/
 __pycache__/
+combine_csv.py
