@@ -9,6 +9,10 @@ c = CurrencyConverter(fallback_on_missing_rate=True, fallback_on_wrong_date=True
 dict_shares = defaultdict(list)
 Moving = namedtuple('Moving', 'date_ qnt amount owner')
 
+INPUT_TYPE = 'input'
+OUTPUT_TYPE = 'output'
+FINANCE_TYPE = 'finance'
+
 class Selgitus():
     #__slots__ = ["Счëт клиентa","Строковый тип","Дата","Получатель/Плательщик","Пояснение",
     #"Сумма","Currency","Дебит/Кредит","Архивный признак","Тип сделки","Номер ссылки","Номер документа",]
@@ -91,6 +95,10 @@ class Selgitus():
         else:
             return 'NOT FOUND!'
 
+    @property
+    def report_type(self):
+        return ''
+
 
 class Dividend(Selgitus):
     def __init__(self, **kwargs):
@@ -160,6 +168,10 @@ class Dividend(Selgitus):
     def sanc(self):
         return ticker_dict.ticker_dict[self.ticker_].sanction
 
+    @property
+    def report_type(self):
+        return ''
+
 
 
 class Buy_sell(Selgitus):
@@ -190,6 +202,10 @@ class Buy_sell(Selgitus):
     def sanc(self):
         return ticker_dict.ticker_dict[self.ticker_].sanction
 
+    @property
+    def report_type(self):
+        return FINANCE_TYPE
+
 
 
 class Comission(Selgitus):
@@ -210,7 +226,37 @@ class Comission(Selgitus):
     def sanc(self):
         return ticker_dict.ticker_dict[self.ticker_].sanction
 
+    @property
+    def report_type(self):
+        return FINANCE_TYPE
+
 
 class Something(Selgitus):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+    @property
+    def report_type(self):
+        eursumm = self.eursumm
+        if eursumm > 0:
+            return INPUT_TYPE
+        else:
+            return OUTPUT_TYPE
+
+
+class Dividend_with_tax(Dividend):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    @property
+    def report_type(self):
+        return INPUT_TYPE
+
+
+class Dividend_zero_tax(Dividend):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    @property
+    def report_type(self):
+        return FINANCE_TYPE

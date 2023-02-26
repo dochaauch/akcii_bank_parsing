@@ -1,5 +1,5 @@
 import csv
-from datetime import datetime, date
+from datetime import datetime
 import pprint
 import re
 from collections import OrderedDict
@@ -9,12 +9,17 @@ import pandas as pd
 
 import ticker_dict
 
+from currency_converter import CurrencyConverter
+
+
+c = CurrencyConverter(fallback_on_missing_rate=True, fallback_on_wrong_date=True)
+
 # "dividend" and not "tulumaks 0.00"
 
 
 # Define constants
 FIELDNAMES = ["cus_account", "string_type", "date_", "Receiver_payer", "description", "amount",
-              "currency", "debit_credit", "archive_attribute", "trans_type", "ref_nr", "doc_nr", "emp"]
+              "currency", "debit_credit", "archive_attribute", "trans_type", "ref_nr", "doc_nr", "emp", "eursumm"]
 REG_NR_REGEX = re.compile(r"/\d+/\s+(\w{10})")
 COMPANY_REGEX = re.compile(r"\w{10}\s+(.*)\s+dividend")
 DIVIDEND_REGEX = re.compile(r"dividend\s+([\d.]+)\s+(\w{3})")
@@ -66,7 +71,6 @@ def find_country(company):
 def parse_row(row):
     parse_string = row['description']
 
-    result = OrderedDict()
     # find regular expression matches
     reg_nr_match = re.search(REG_NR_REGEX, parse_string)
     company_match = re.search(COMPANY_REGEX, parse_string)
@@ -81,7 +85,12 @@ def parse_row(row):
         "currency": row['currency'],
         "dividend": float(dividend_match.group(1)) if dividend_match else None,
         "date_": row['date_'],
-        "tulumaks": float(tulumaks_match.group(1)) if tulumaks_match else None
+        "tulumaks": float(tulumaks_match.group(1)) if tulumaks_match else None,
+        "on_hand": float(row['amount'].replace(",", ".")),
+        "tax_%": round((float(tulumaks_match.group(1)) if tulumaks_match else None)
+                 / (float(dividend_match.group(1)) if dividend_match else None) * 100, 2),
+        "div_eur": round(c.convert(float(dividend_match.group(1)), row["currency"], 'EUR',
+                             date=datetime.strptime(row["date_"], '%d.%m.%Y')), 2),
     }
     return result
 
@@ -91,47 +100,83 @@ def create_df(dict_):
     return df
 
 
-def process_df(list_for_df):
+def process_df(list_for_df, country):
     df = create_df(list_for_df)
+    df["tax_%"] = df["tax_%"].apply(lambda x: '{:.2f}'.format(x))
+
+    if country == "not_local":
+        df = df.loc[df['country'] != 'Эстония']
+    elif country == "local":
+        df = df.loc[df['country'] == 'Эстония']
+    else:
+        df = df
+
+    df["eur_cumsum"] = df["div_eur"].cumsum()
+
+    df.to_csv("div.csv", index=False)
+
     total_row = {'reg_nr': 'Total',
                  'company': '',
                  'country': df['country'].nunique(),
                  'currency': df['currency'].nunique(),
                  'dividend': df['dividend'].sum(),
                  'date_': '',
-                 'tulumaks': df['tulumaks'].sum()}
+                 'tulumaks': df['tulumaks'].sum(),
+                 'on_hand': df['on_hand'].sum(),
+                 'tax_%': df['tulumaks'].sum()/df['on_hand'].sum() * 100,
+                 'div_eur': df['div_eur'].sum(),
+                 'eur_cumsum': '',
+                 }
+
     total_df = pd.DataFrame(total_row, index=[0])
     df = pd.concat([df, total_df], ignore_index=True)
+
+
+
     print(df.to_string())
 
 
 def print_rows_of_list(list_of_filter_rows):
-    list_for_df = []
     for row in list_of_filter_rows:
         print(row['description'])
         print(row['date_'], row['amount'], row['currency'])
-        res = parse_row(row)
-        pprint.pprint(res)
-        list_for_df.append(res)
+        pprint.pprint(parse_row(row))
         print()
+
+
+def collect_rows(list_of_filter_rows):
+    list_for_df = []
+    for row in list_of_filter_rows:
+        res = parse_row(row)
+        list_for_df.append(res)
     return list_for_df
 
 
-def nice_print(list_of_rows, message, search_word, flag):
+def nice_print(list_of_rows, message, search_word, flag, country):
     print("*" * 15)
     print(message)
     list_with_no_div = filter_rows(list_of_rows, search_word, flag)
-    list_for_df_no = print_rows_of_list(list_with_no_div)
-    process_df(list_for_df_no)
+    list_for_df_no = collect_rows(list_with_no_div)
+    #print_rows_of_list(list_with_no_div)
+    process_df(list_for_df_no, country)
     print("*" * 15)
 
 
+
 def main():
-    target_file = '/Users/docha/Google Диск/akcii docha/2022/statement.csv'
-    # target_file = '/Users/docha/Google Диск/akcii Tolika/2022/statement.csv'
+    #target_file = '/Users/docha/Google Диск/akcii docha/2022/statement.csv'
+    target_file = '/Users/docha/Google Диск/akcii Tolika/2022/statement.csv'
     list_of_rows = read_file(target_file)
-    nice_print(list_of_rows, 'dividendid, no tulumaks', 'dividend', '')
-    nice_print(list_of_rows, 'dividendid, tulumaks, for EMTA', 'dividend', 'not')
+    #nice_print(list_of_rows, message='dividends, no taxes', search_word='dividend',
+    #           flag='', country='all')
+    nice_print(list_of_rows, message='dividends, no taxes, local', search_word='dividend',
+               flag='', country='local')
+    nice_print(list_of_rows, message='dividends, no taxes, foreign', search_word='dividend',
+               flag='', country='not_local')
+    nice_print(list_of_rows, message='dividends, with taxes, for EMTA, local', search_word='dividend',
+               flag='not', country='local')
+    nice_print(list_of_rows, message='dividends, with taxes, for EMTA, foreign', search_word='dividend',
+               flag='not', country='not_local')
 
 
 if __name__ == '__main__':
