@@ -1,26 +1,33 @@
-import pandas as pd
-import numpy as np
-import sidetable
-
-from datetime import datetime, date
 import csv
+import os
+from collections import defaultdict
+from datetime import datetime
+
+import numpy as np
+import pandas as pd
+import sidetable as stb
+
+import classes_for_statement
+
+from icecream import ic
+from datetime import datetime
+
+#stb.extension("pandas")
 
 import ticker_dict
+from classes_for_statement import Buy_sell, Comission, Something, Dividend_with_tax, Dividend_zero_tax
 
-from collections import defaultdict
-
-import os
-
-from classes_for_statement import Dividend, Buy_sell, Comission, Something, Dividend_with_tax, Dividend_zero_tax
-
-import pprint
-
+def time_format():
+    return f'{datetime.now()}|> '
 
 #в этих папках не должно быть вложений и только нужные csv
 your_target_folder_list = [
-    "/Users/docha/Google Диск/akcii Tolika/2022",
-                            "/Users/docha/Google Диск/akcii Tolika/2021",
-                           "/Users/docha/Google Диск/akcii docha/2022"]
+    "/Users/docha/Library/CloudStorage/GoogleDrive-mob37256213753@gmail.com/Мой диск/akcii Tolika/2022",
+    "/Users/docha/Library/CloudStorage/GoogleDrive-mob37256213753@gmail.com/Мой диск/akcii Tolika/2021",
+    "/Users/docha/Library/CloudStorage/GoogleDrive-mob37256213753@gmail.com/Мой диск/akcii docha/2022",
+    "/Users/docha/Library/CloudStorage/GoogleDrive-mob37256213753@gmail.com/Мой диск/akcii Tolika/2023",
+    "/Users/docha/Library/CloudStorage/GoogleDrive-mob37256213753@gmail.com/Мой диск/akcii docha/2023",
+]
 list_of_file = []
 
 def read_all_files_in_folder(fold_list):
@@ -32,15 +39,15 @@ def read_all_files_in_folder(fold_list):
                     list_of_file.append(file_full_path)
     return list_of_file
 
-#list_of_file = ['tolik_210101-211231_aa.csv',
-#                'tolik_220101-220630_aa.csv',
-#                'tolik_220701-220706_aa.csv',
-#                'docha_220101-220630.csv']
 
 list_of_file = read_all_files_in_folder(your_target_folder_list)
 print(list_of_file)
 
-dict_shares = defaultdict(list)
+#dict_shares = defaultdict(list)
+dict_shares = classes_for_statement.dict_shares
+dict_saldo = classes_for_statement.dict_saldo
+dict_money = classes_for_statement.dict_money
+dict_source = classes_for_statement.dict_source
 
 
 def read_file(file_):
@@ -85,19 +92,46 @@ for row_ in csv_dict:
     row_['type'] = line.report_type
 
 
+    for_saldo = dict_saldo.get(line.firma_long, '')
+    for_mean = dict_shares.get(line.firma_long, '')
 
-    s_q_e = dict_shares.get(line.firma_long, '')
 
-    q_total = sum([s_q_e[i].qnt for i in range(len(s_q_e)) if s_q_e[i].owner == row_['owner']])
-    e_total = sum([s_q_e[i].amount for i in range(len(s_q_e)) if s_q_e[i].owner == row_['owner']])
+    q_total = sum([for_saldo[i].qnt for i in range(len(for_saldo)) if for_saldo[i].owner == row_['owner']])
+    e_total = sum([for_saldo[i].amount for i in range(len(for_saldo)) if for_saldo[i].owner == row_['owner']])
     row_['shares_qnt'] = q_total
     row_['shares_eur'] = e_total
+
+    total_q_mean = sum([for_mean[i].qnt for i in range(len(for_mean)) if for_mean[i].owner == row_['owner']])
+    total_e_mean = sum([for_mean[i].amount for i in range(len(for_mean)) if for_mean[i].owner == row_['owner']])
+    try:
+        row_['mean_price'] = total_e_mean / total_q_mean * -1
+        #при продаже всех акций в 0 обнуляем данные для подсчета средней цены
+        if q_total == 0:
+            if line.firma_long in dict_shares:
+                dict_shares[line.firma_long] = [entry for entry in dict_shares[line.firma_long] if
+                                                entry.owner != row_['owner']]
+    except:
+        row_['mean_price'] = 0
+
+    print(line.date_, line.owner, line.__class__.__name__, line.ticker_, line.eursumm,
+          dict_money[line.owner]['balances'], dict_source)
+
+
 
 
 df_full = pd.DataFrame(csv_dict)
 df_full['next_row'] = df_full['class'].shift(-1)
 
-print("Whithout something")
+#ic(dict_money)
+
+# Loop through each owner and print their balances
+#for owner in classes_for_statement.owners:
+#    ic("Owner:", owner)
+#    balances = dict_money[owner]['balances']
+#    for category, balance in balances.items():
+#        ic(f"{category.capitalize()} balance:", balance)
+
+print("Whithout something, будет распечатано, если есть ошибки")
 print(df_full[(df_full['class'] != 'Something') & (df_full['ticker_'] == '')].to_string(), end='\n\n')
 
 #сохранить df в csv
@@ -122,6 +156,7 @@ for key in sorted(ticker_dict.ticker_dict.keys()):
 df_buy_sel_div = df_full[(df_full['class'] == 'Buy_sell') | (df_full['class'] .str.startswith('Dividend'))]
 print('Buy - sell - dividend, вложенная сумма по владельцу')
 print(df_buy_sel_div.groupby(['owner']).agg({'eursumm': ['sum']}).stb.subtotal(), end='\n\n')
+#print(df_buy_sel_div.groupby(['owner']).agg({'eursumm': ['sum']}).stsib.subtotal(), end='\n\n')
 
 df_buy_sel_div = df_buy_sel_div.groupby(['sanc', 'owner'])
 print('Buy - sell - dividend, вложенная сумма по владельцу, санкционные')

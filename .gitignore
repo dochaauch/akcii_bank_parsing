@@ -6,3 +6,5 @@ trial/functions.py
 .idea/
 __pycache__/
 combine_csv.py
+*.xlsx
+test.py

@@ -164,7 +164,7 @@ def nice_print(list_of_rows, message, search_word, flag, country):
 
 
 def main():
-    #target_file = '/Users/docha/Google Диск/akcii docha/2022/statement.csv'
+    # target_file = '/Users/docha/Google Диск/akcii docha/2022/statement.csv'
     target_file = '/Users/docha/Google Диск/akcii Tolika/2022/statement.csv'
     list_of_rows = read_file(target_file)
     #nice_print(list_of_rows, message='dividends, no taxes', search_word='dividend',

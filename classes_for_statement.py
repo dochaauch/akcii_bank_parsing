@@ -1,17 +1,47 @@
-from collections import namedtuple
-from collections import defaultdict
-from datetime import datetime, date
-from currency_converter import CurrencyConverter
 import re
+from collections import defaultdict
+from collections import namedtuple
+from datetime import datetime
+
+from currency_converter import CurrencyConverter
+
 import ticker_dict
 
 c = CurrencyConverter(fallback_on_missing_rate=True, fallback_on_wrong_date=True)
 dict_shares = defaultdict(list)
+dict_saldo = defaultdict(list)
+
 Moving = namedtuple('Moving', 'date_ qnt amount owner')
+
+
+# Define the owners
+owners = ['tolik', 'docha']
+
+# Create the nested defaultdict with the specified keys for each owner
+dict_money = defaultdict(lambda: defaultdict(list))
+
+# Add the four keys to each owner's dictionary
+for owner in owners:
+    dict_money[owner]['cash'] = []
+    dict_money[owner]['div_with_tax'] = []
+    dict_money[owner]['div_zero_tax'] = []
+    dict_money[owner]['result'] = []
+    dict_money[owner]['balances'] = {
+        'cash': 0.0,
+        'div_with_tax': 0.0,
+        'div_zero_tax': 0.0,
+        'result': 0.0,}
+
+Money_in_out = namedtuple('Money_in_out', 'date_ ticker amount_eur')
+
+dict_source = {'cash': 0.0,
+               'virt_wallet': 0.0}
+
 
 INPUT_TYPE = 'input'
 OUTPUT_TYPE = 'output'
 FINANCE_TYPE = 'finance'
+
 
 class Selgitus():
     #__slots__ = ["Счëт клиентa","Строковый тип","Дата","Получатель/Плательщик","Пояснение",
@@ -26,6 +56,15 @@ class Selgitus():
         self.month_ = self.date_.strftime('%Y-%m')
         self.year_ = str(self.date_.year)
         self.amount = float(self.amount.replace(',', '.'))
+
+
+    def cash_flow(self, category):
+        money_in_out_instance = Money_in_out(self.date_, self.ticker_, round(self.eursumm, 2))
+        dict_money[self.owner][category].append(money_in_out_instance)
+        # Update the balance for the specific category with two decimal places
+        dict_money[self.owner]['balances'][category] = round(
+            dict_money[self.owner]['balances'][category] + self.eursumm, 2)
+        print("cash flow", self.date_, self.ticker_, category, self.owner, dict_money[self.owner]['balances'][category])
 
     @property
     def eursumm(self):
@@ -104,6 +143,7 @@ class Dividend(Selgitus):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+
     @property
     def firma_nr(self):
         nr_firma_pattern = r'/\d+/\s(\b\w*)'
@@ -175,9 +215,55 @@ class Dividend(Selgitus):
 
 
 class Buy_sell(Selgitus):
+    balance_categories = ['result', 'div_zero_tax', 'div_with_tax', 'cash']
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        dict_shares[self.firma_long].append(Moving(self.date_, self.amount_shares, self.eursumm, self.owner))
+        #собираем только покупку, для средней цены акции
+        if self.amount_shares > 0:
+            dict_shares[self.firma_long].append(Moving(self.date_, self.amount_shares, self.eursumm, self.owner))
+        dict_saldo[self.firma_long].append(Moving(self.date_, self.amount_shares, self.eursumm, self.owner))
+
+        if self.eursumm < 0:  # покупка акций
+            self.buy_stocks()
+        else:
+            self.sell_stocks()
+
+    def buy_stocks(self):
+        remaining_eursumm = self.eursumm
+        #print(self.date_, self.ticker_, remaining_eursumm)
+        #balance_categories = ['result', 'div_zero_tax', 'div_with_tax', 'cash']
+
+        for category in self.balance_categories:
+            balance = dict_money[self.owner]['balances'][category]
+
+            if category != 'cash':
+                if balance > 0:
+                    if remaining_eursumm < 0:
+                        # Check if the remaining amount can be fully closed from the current category
+                        if remaining_eursumm + balance >= 0:
+                            dict_money[self.owner]['balances'][category] += remaining_eursumm
+                            dict_money[self.owner][category].append(
+                                Money_in_out(self.date_, self.ticker_, round(remaining_eursumm, 2)))
+                            remaining_eursumm = 0
+                            break
+                        else:
+                            # Perform the closing from the current category balance
+                            dict_money[self.owner]['balances'][category] = 0
+                            remaining_eursumm += balance
+                            dict_money[self.owner][category].append(
+                                Money_in_out(self.date_, self.ticker_, round(balance, 2)))
+
+        # If there is still a remaining negative amount, close it from the 'cash' category
+        dict_money[self.owner]['balances']['cash'] += remaining_eursumm
+        dict_source['cash'] = remaining_eursumm
+        dict_source['virt_wallet'] = remaining_eursumm - self.eursumm
+        dict_money[self.owner]['cash'].append(
+            Money_in_out(self.date_, self.ticker_, round(remaining_eursumm, 2)))
+
+
+
+    def sell_stocks(self):
+        pass
 
     @property
     def ticker_(self):
@@ -211,7 +297,7 @@ class Buy_sell(Selgitus):
 class Comission(Selgitus):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        dict_shares[self.firma_long].append(Moving(self.date_, 0, self.eursumm, self.owner))
+        dict_saldo[self.firma_long].append(Moving(self.date_, 0, self.eursumm, self.owner))
 
     @property
     def ticker_(self):
@@ -247,6 +333,8 @@ class Something(Selgitus):
 class Dividend_with_tax(Dividend):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        category = 'div_with_tax'
+        self.cash_flow(category)
 
     @property
     def report_type(self):
@@ -256,6 +344,10 @@ class Dividend_with_tax(Dividend):
 class Dividend_zero_tax(Dividend):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        category = 'div_zero_tax'
+        self.cash_flow(category)
+
+
 
     @property
     def report_type(self):

@@ -33,6 +33,7 @@ ticker_dict = {'DAI': Share_data('Mercedes-Benz Group', 'no', 'Германия'
                'AB': Share_data('ALLIANCEBERNSTEIN HOLDING LP', 'no', '', '',),
                'GOGL-US1': Share_data('GOLDEN OCEAN GROUP LTD USA', 'no', 'Багамские острова', 'BMG396372051',),
                'ORC-US': Share_data('ORCHID ISLAND CAPITAL INC', 'no', 'Соединенные Штаты Америки', 'US68571X1037',),
+               'ORC-US1': Share_data('ORCHID ISLAND CAPITAL INC', 'no', 'Соединенные Штаты Америки', 'US68571X1037',),#проверить код
                'ZIM-US': Share_data('ZIM INTEGRATED SHIPPING SERVICE', 'no', 'Израиль', 'IL0065100930',),
                'J5A-GR': Share_data('Warner Bros Discovery Inc', 'no', '', '',),
                'ARR-US': Share_data('ARMOUR RESIDENTIAL REIT INC', 'no', 'Соединенные Штаты Америки', 'US0423155078',),

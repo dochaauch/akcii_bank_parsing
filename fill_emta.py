@@ -190,8 +190,10 @@ def fill_data(driver, our_reg_nr, our_company, our_country, our_currency, our_am
 def main():
     # isikukood = "47901050281"
     isikukood = '37708280352'
-    driver_path = '/Users/docha/Downloads/chromedriver_mac64/chromedriver'
     url_path = 'https://tuludeklaratsioon.emta.ee/fidek22-client/declaration'
+
+    driver_path = '/Users/docha/Downloads/chromedriver_mac64/chromedriver'
+
     driver = set_driver(driver_path, url_path)
     wait = WebDriverWait(driver, 30)
 
