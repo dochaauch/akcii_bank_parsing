@@ -10,8 +10,7 @@ import ticker_dict
 c = CurrencyConverter(fallback_on_missing_rate=True, fallback_on_wrong_date=True)
 dict_shares = defaultdict(list)
 dict_saldo = defaultdict(list)
-
-Moving = namedtuple('Moving', 'date_ qnt amount owner')
+Moving = namedtuple('Moving', 'date_ sh_qnt sh_amount owner')
 
 
 # Define the owners
@@ -56,6 +55,7 @@ class Selgitus():
         self.month_ = self.date_.strftime('%Y-%m')
         self.year_ = str(self.date_.year)
         self.amount = float(self.amount.replace(',', '.'))
+        #self.qnt = 1  # Add the 'qnt' attribute and set it to 0
 
 
     def cash_flow(self, category):
@@ -137,6 +137,39 @@ class Selgitus():
     @property
     def report_type(self):
         return ''
+
+    @property
+    def shares_qnt(self):
+        for_saldo = dict_saldo.get(self.firma_long, '')
+        return sum([for_saldo[i].sh_qnt for i in range(len(for_saldo)) if for_saldo[i].owner == self.owner])
+
+    @property
+    def shares_eur(self):
+        for_saldo = dict_saldo.get(self.firma_long, '')
+        return sum([for_saldo[i].sh_amount for i in range(len(for_saldo)) if for_saldo[i].owner == self.owner])
+
+    @property
+    def mean_price(self):
+        for_mean = dict_shares.get(self.firma_long, '')
+        qnt_values = [entry.sh_qnt for entry in for_mean if hasattr(entry, 'sh_qnt') and entry.owner == self.owner]
+        total_q_mean = sum(qnt_values) if qnt_values else 0
+
+        amount_values = [entry.sh_amount for entry in for_mean if hasattr(entry, 'sh_amount') and entry.owner == self.owner]
+        total_e_mean = sum(amount_values) if amount_values else 0
+
+        try:
+            mean_price = total_e_mean / total_q_mean * -1
+            # Update dict_shares with mean price when q_total is 0
+            mean_price_calculated = mean_price
+            return mean_price_calculated
+        except ZeroDivisionError:
+            return 0
+
+    def clear_dict_shares(self):
+        if self.shares_qnt == 0:
+            if self.firma_long in dict_shares:
+                dict_shares[self.firma_long] = [entry for entry in dict_shares[self.firma_long] if
+                                                entry.owner != self.owner]
 
 
 class Dividend(Selgitus):
@@ -263,7 +296,13 @@ class Buy_sell(Selgitus):
 
 
     def sell_stocks(self):
-        pass
+        remaining_eursumm = self.eursumm
+        mid_sale = self.mean_price * self.amount_shares
+        result = remaining_eursumm - mid_sale
+        print("продажи", mid_sale, result)
+
+
+
 
     @property
     def ticker_(self):
@@ -346,7 +385,6 @@ class Dividend_zero_tax(Dividend):
         super().__init__(**kwargs)
         category = 'div_zero_tax'
         self.cash_flow(category)
-
 
 
     @property

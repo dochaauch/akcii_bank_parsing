@@ -91,31 +91,37 @@ for row_ in csv_dict:
     row_['class'] = line.__class__.__name__
     row_['type'] = line.report_type
 
+    # for_saldo = dict_saldo.get(line.firma_long, '')
+    # for_mean = dict_shares.get(line.firma_long, '')
+    #
+    #
+    # q_total = sum([for_saldo[i].sh_qnt for i in range(len(for_saldo)) if for_saldo[i].owner == row_['owner']])
+    # e_total = sum([for_saldo[i].sh_amount for i in range(len(for_saldo)) if for_saldo[i].owner == row_['owner']])
+    # row_['shares_qnt0'] = q_total
+    # row_['shares_eur0'] = e_total
 
-    for_saldo = dict_saldo.get(line.firma_long, '')
-    for_mean = dict_shares.get(line.firma_long, '')
+    # total_q_mean = sum([for_mean[i].sh_qnt for i in range(len(for_mean)) if for_mean[i].owner == row_['owner']])
+    # total_e_mean = sum([for_mean[i].sh_amount for i in range(len(for_mean)) if for_mean[i].owner == row_['owner']])
+    # try:
+    #     row_['mean_price0'] = total_e_mean / total_q_mean * -1
+    #     #при продаже всех акций в 0 обнуляем данные для подсчета средней цены
+    #     if q_total == 0:
+    #         if line.firma_long in dict_shares:
+    #             dict_shares[line.firma_long] = [entry for entry in dict_shares[line.firma_long] if
+    #                                             entry.owner != row_['owner']]
+    # except:
+    #     row_['mean_price0'] = 0
 
 
-    q_total = sum([for_saldo[i].qnt for i in range(len(for_saldo)) if for_saldo[i].owner == row_['owner']])
-    e_total = sum([for_saldo[i].amount for i in range(len(for_saldo)) if for_saldo[i].owner == row_['owner']])
-    row_['shares_qnt'] = q_total
-    row_['shares_eur'] = e_total
+    row_['shares_qnt'] = line.shares_qnt
+    row_['shares_eur'] = line.shares_eur
+    row_['mean_price'] = line.mean_price
+    line.clear_dict_shares()
 
-    total_q_mean = sum([for_mean[i].qnt for i in range(len(for_mean)) if for_mean[i].owner == row_['owner']])
-    total_e_mean = sum([for_mean[i].amount for i in range(len(for_mean)) if for_mean[i].owner == row_['owner']])
-    try:
-        row_['mean_price'] = total_e_mean / total_q_mean * -1
-        #при продаже всех акций в 0 обнуляем данные для подсчета средней цены
-        if q_total == 0:
-            if line.firma_long in dict_shares:
-                dict_shares[line.firma_long] = [entry for entry in dict_shares[line.firma_long] if
-                                                entry.owner != row_['owner']]
-    except:
-        row_['mean_price'] = 0
+    dict_shares[line.firma_long].append(line)
 
     print(line.date_, line.owner, line.__class__.__name__, line.ticker_, line.eursumm,
           dict_money[line.owner]['balances'], dict_source)
-
 
 
 
