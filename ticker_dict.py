@@ -37,7 +37,6 @@ ticker_dict = {'DAI': Share_data('Mercedes-Benz Group', 'no', 'Германия'
                'ZIM-US': Share_data('ZIM INTEGRATED SHIPPING SERVICE', 'no', 'Израиль', 'IL0065100930',),
                'J5A-GR': Share_data('Warner Bros Discovery Inc', 'no', '', '',),
                'ARR-US': Share_data('ARMOUR RESIDENTIAL REIT INC', 'no', 'Соединенные Штаты Америки', 'US0423155078',),
-
                }
 
 

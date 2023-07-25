@@ -25,16 +25,19 @@ for owner in owners:
     dict_money[owner]['div_with_tax'] = []
     dict_money[owner]['div_zero_tax'] = []
     dict_money[owner]['result'] = []
+    dict_money[owner]['virt_wallet'] = []
     dict_money[owner]['balances'] = {
         'cash': 0.0,
         'div_with_tax': 0.0,
         'div_zero_tax': 0.0,
-        'result': 0.0,}
+        'result': 0.0,
+        'virt_wallet': 0.0}
 
 Money_in_out = namedtuple('Money_in_out', 'date_ ticker amount_eur')
 
-dict_source = {'cash': 0.0,
-               'virt_wallet': 0.0}
+dict_source = {}
+for owner in owners:
+    dict_source[owner] = {}
 
 
 INPUT_TYPE = 'input'
@@ -55,8 +58,6 @@ class Selgitus():
         self.month_ = self.date_.strftime('%Y-%m')
         self.year_ = str(self.date_.year)
         self.amount = float(self.amount.replace(',', '.'))
-        #self.qnt = 1  # Add the 'qnt' attribute and set it to 0
-
 
     def cash_flow(self, category):
         money_in_out_instance = Money_in_out(self.date_, self.ticker_, round(self.eursumm, 2))
@@ -158,10 +159,7 @@ class Selgitus():
         total_e_mean = sum(amount_values) if amount_values else 0
 
         try:
-            mean_price = total_e_mean / total_q_mean * -1
-            # Update dict_shares with mean price when q_total is 0
-            mean_price_calculated = mean_price
-            return mean_price_calculated
+            return total_e_mean / total_q_mean * -1
         except ZeroDivisionError:
             return 0
 
@@ -257,14 +255,12 @@ class Buy_sell(Selgitus):
         dict_saldo[self.firma_long].append(Moving(self.date_, self.amount_shares, self.eursumm, self.owner))
 
         if self.eursumm < 0:  # покупка акций
-            self.buy_stocks()
+            self.buy_stocks(dict_money, dict_source)
         else:
-            self.sell_stocks()
+            self.sell_stocks(dict_money, dict_source)
 
-    def buy_stocks(self):
+    def buy_stocks(self, dict_money, dict_source):
         remaining_eursumm = self.eursumm
-        #print(self.date_, self.ticker_, remaining_eursumm)
-        #balance_categories = ['result', 'div_zero_tax', 'div_with_tax', 'cash']
 
         for category in self.balance_categories:
             balance = dict_money[self.owner]['balances'][category]
@@ -274,7 +270,7 @@ class Buy_sell(Selgitus):
                     if remaining_eursumm < 0:
                         # Check if the remaining amount can be fully closed from the current category
                         if remaining_eursumm + balance >= 0:
-                            dict_money[self.owner]['balances'][category] += remaining_eursumm
+                            dict_money[self.owner]['balances'][category] += round(remaining_eursumm, 2)
                             dict_money[self.owner][category].append(
                                 Money_in_out(self.date_, self.ticker_, round(remaining_eursumm, 2)))
                             remaining_eursumm = 0
@@ -287,19 +283,76 @@ class Buy_sell(Selgitus):
                                 Money_in_out(self.date_, self.ticker_, round(balance, 2)))
 
         # If there is still a remaining negative amount, close it from the 'cash' category
-        dict_money[self.owner]['balances']['cash'] += remaining_eursumm
-        dict_source['cash'] = remaining_eursumm
-        dict_source['virt_wallet'] = remaining_eursumm - self.eursumm
+        dict_money[self.owner]['balances']['cash'] += round(remaining_eursumm, 2)
+
+        # Получаем текущие значения cash и virt_wallet с установкой значения по умолчанию 0.0
+        current_cash, current_virt_wallet = dict_source[self.owner].get(self.ticker_,
+                                                                        {'cash': 0.0, 'virt_wallet': 0.0}).values()
+
+        # Вычисляем новые значения cash и virt_wallet
+        new_cash, new_virt_wallet = current_cash + remaining_eursumm, current_virt_wallet + (
+                    remaining_eursumm - self.eursumm)
+
+        # Обновляем словарь с новыми значениями
+        dict_source[self.owner][self.ticker_] = {'cash': new_cash, 'virt_wallet': new_virt_wallet}
+        print('проверка', dict_source[self.owner][self.ticker_])
         dict_money[self.owner]['cash'].append(
             Money_in_out(self.date_, self.ticker_, round(remaining_eursumm, 2)))
 
-
-
-    def sell_stocks(self):
+    def sell_stocks(self, dict_money, dict_source):
         remaining_eursumm = self.eursumm
-        mid_sale = self.mean_price * self.amount_shares
-        result = remaining_eursumm - mid_sale
-        print("продажи", mid_sale, result)
+        mid_sale = round(self.mean_price * self.amount_shares, 2)
+        result = round(remaining_eursumm - mid_sale * -1, 2)
+
+        dict_money[self.owner]['result'].append(
+            Money_in_out(self.date_, self.ticker_, result))
+        dict_money[self.owner]['balances']['result'] += result
+        if self.owner in dict_source and self.ticker_ in dict_source[self.owner]:
+            pass
+            #dict_source[self.owner][self.ticker_]['virt_wallet'] += result
+        else:
+            dict_source[self.owner][self.ticker_] = {'cash': 0.0, 'virt_wallet': result}
+
+        ticker_cash = dict_source.get(self.owner, {}).get(self.ticker_, {}).get('cash', 0.0)
+        ticker_virt = dict_source.get(self.owner, {}).get(self.ticker_, {}).get('virt_wallet', 0.0)
+        ticker_mid = mid_sale
+        print(f'ticker_virt {ticker_virt}, mid_sale {mid_sale}, ticker_cash {ticker_cash}, ticker_mid {ticker_mid}')
+        if self.owner in dict_source and self.ticker_ in dict_source[self.owner]:
+            if ticker_virt >= abs(mid_sale) and ticker_virt >= 0:
+                dict_source[self.owner][self.ticker_]['virt_wallet'] -= mid_sale
+                dict_money[self.owner]['virt_wallet'].append(
+                    Money_in_out(self.date_, self.ticker_, mid_sale))
+            else:
+                ticker_diff = mid_sale - ticker_virt
+                dict_source[self.owner][self.ticker_]['virt_wallet'] += ticker_virt
+                dict_source[self.owner][self.ticker_]['cash'] -= ticker_diff
+                dict_money[self.owner]['virt_wallet'].append(
+                    Money_in_out(self.date_, self.ticker_, ticker_virt))
+                dict_money[self.owner]['cash'].append(
+                    Money_in_out(self.date_, self.ticker_, ticker_diff))
+                print(
+                    f' проверка ticker_virt {ticker_virt}, mid_sale {mid_sale}, ticker_cash {ticker_cash},'
+                    f' ticker_mid {ticker_mid}, ticker_diff {ticker_diff}')
+
+           #if mid_sale <= ticker_cash:
+                #dict_source[self.owner][self.ticker_]['cash'] -= mid_sale
+                #dict_money[self.owner]['cash'].append(
+                #    Money_in_out(self.date_, self.ticker_, mid_sale))
+                #dict_money[self.owner]['balances']['cash'] += mid_sale
+            #else:
+                # dict_source[self.owner][self.ticker_]['cash'] -= ticker_cash
+                # dict_source[self.owner][self.ticker_]['virt_wallet'] -= mid_sale - ticker_cash
+                # dict_money[self.owner]['cash'].append(
+                #     Money_in_out(self.date_, self.ticker_, ticker_cash))
+                # dict_money[self.owner]['balances']['virt_wallet'] += mid_sale - ticker_cash
+        else:
+                # Создаем вложенный словарь, если ключи отсутствуют
+                dict_source[self.owner][self.ticker_] = {'cash': 0.0, 'virt_wallet': -mid_sale}
+                dict_money[self.owner]['virt_wallet'].append(
+                    Money_in_out(self.date_, self.ticker_, -mid_sale))
+                dict_money[self.owner]['balances']['virt_wallet'] -= mid_sale
+        print(f"продажи: по средней {mid_sale}, результат {result},"
+              f" {dict_source.get(self.owner, {}).get(self.ticker_, {})}, {ticker_cash}")
 
 
 

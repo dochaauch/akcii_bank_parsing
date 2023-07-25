@@ -121,7 +121,7 @@ for row_ in csv_dict:
     dict_shares[line.firma_long].append(line)
 
     print(line.date_, line.owner, line.__class__.__name__, line.ticker_, line.eursumm,
-          dict_money[line.owner]['balances'], dict_source)
+          dict_money[line.owner]['balances'], dict_source.get(line.owner, {}).get(line.ticker_, {}))
 
 
 

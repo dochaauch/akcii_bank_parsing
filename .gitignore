@@ -7,4 +7,4 @@ trial/functions.py
 __pycache__/
 combine_csv.py
 *.xlsx
-test.py
+trial/
